@@ -83,21 +83,3 @@ jobs:
           context: ${{ matrix.context }}
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image }}:latest
-
-  notify:
-    name: Notify in Telegram
-    runs-on: ubuntu-latest
-    needs: publish-images
-    env:
-      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-    steps:
-      - name: Send success notification
-        if: ${{ env.TELEGRAM_BOT_TOKEN != '' && env.TELEGRAM_CHAT_ID != '' }}
-        run: |
-          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          curl --fail --silent --show-error --max-time 20 \
-            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
-            --data-urlencode "text=Kittygram: образы опубликованы. ${run_url}" \
-            --output /dev/null \
-            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"
