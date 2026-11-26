@@ -33,12 +33,12 @@ export const MainCard = ({
       <div className={styles.data_box}>
         <div className={styles.name_n_date_box}>
           <p
-            className={`text text_type_h3 text_color_primary mt-8 mb-3 ${styles.name}`}
+            className={`text text_type_h3 text_color_primary mt-8 mb-3`}
           >
             {name}
           </p>
           <p
-            className={`text text_type_medium-20 text_color_secondary mb-8 ${styles.date}`}
+            className={`text text_type_medium-20 text_color_secondary mb-8`}
           >
             {date}
           </p>
@@ -48,7 +48,7 @@ export const MainCard = ({
           style={{ backgroundColor: color }}
         >
           <p
-            className={`text text_type_medium-20 text_color_${colorText} ${styles.cat_color}`}
+            className={`text text_type_medium-20 text_color_${colorText}`}
           >
             {color}
           </p>

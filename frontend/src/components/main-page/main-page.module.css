@@ -6,17 +6,8 @@
 }
 
 .box {
-  max-width: 1230px;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 20px;
-}
-
-@media screen and (max-width: 800px) {
-  .box {
-    gap: 14px;
-  }
+  width: min(100%, 680px);
+  border-top: 1px solid var(--logout-btn-border);
 }
 
 @media screen and (max-width: 481px) {

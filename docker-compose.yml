@@ -1,27 +1,43 @@
-version: '3'
-
 volumes:
-  pg_data:
   static:
+  media:
 
 services:
-  db:
-    image: postgres:13
-    volumes:
-      - pg_data:/var/lib/postgresql/data
   backend:
+    image: kittygram_backend
     build: ./backend/
     env_file: .env
+    environment:
+      DJANGO_DEBUG: 'False'
+    command:
+      - sh
+      - -c
+      - >-
+        python manage.py migrate --noinput &&
+        python manage.py collectstatic --noinput &&
+        exec gunicorn --bind 0.0.0.0:8000 kittygram_backend.wsgi:application
+    volumes:
+      - static:/app/static
+      - media:/app/media
   frontend:
-    env_file: .env
+    image: kittygram_frontend
     build: ./frontend/
-    command: cp -r /app/build/. /static/
+    command:
+      - sh
+      - -c
+      - mkdir -p /static/kittygram && cp -R /app/build/. /static/kittygram/
     volumes:
       - static:/static
   gateway:
+    image: kittygram_gateway
     build: ./nginx/
-    env_file: .env
+    depends_on:
+      backend:
+        condition: service_started
+      frontend:
+        condition: service_completed_successfully
     ports:
-      - 9000:80
+      - '127.0.0.1:9000:80'
     volumes:
-      - static:/static
+      - static:/static:ro
+      - media:/media:ro
