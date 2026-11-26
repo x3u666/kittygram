@@ -1,0 +1,103 @@
+name: Kittygram CI/CD
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kittygram-main
+  cancel-in-progress: false
+
+jobs:
+  backend:
+    name: Backend checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt ruff==0.17.6
+      - name: Run Ruff
+        run: python -m ruff check .
+      - name: Run Django tests
+        run: python manage.py test
+
+  frontend:
+    name: Frontend tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '18'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Run React tests
+        run: npm test -- --watchAll=false --runInBand
+
+  publish-images:
+    name: Publish ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    strategy:
+      matrix:
+        include:
+          - image: kittygram_backend
+            context: ./backend
+          - image: kittygram_frontend
+            context: ./frontend
+          - image: kittygram_gateway
+            context: ./nginx
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@v4
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push image
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image }}:latest
+
+  notify:
+    name: Notify in Telegram
+    runs-on: ubuntu-latest
+    needs: publish-images
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+    steps:
+      - name: Send success notification
+        if: ${{ env.TELEGRAM_BOT_TOKEN != '' && env.TELEGRAM_CHAT_ID != '' }}
+        run: |
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          curl --fail --silent --show-error --max-time 20 \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=Kittygram: образы опубликованы. ${run_url}" \
+            --output /dev/null \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"
